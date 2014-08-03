@@ -27,7 +27,7 @@ public class ProtocolReaderTest
         RedisReply reply = reader.getReply();
         assertNotNull(reply);
         assertEquals(reply.getType(), RedisReply.Type.STATUS);
-        assertEquals(BufferUtils.decode(reply.getBuff()), "OK");
+        assertEquals(BufferUtils.decode(reply.getBytes()), "OK");
     }
 
     @Test
@@ -38,7 +38,7 @@ public class ProtocolReaderTest
         RedisReply reply = reader.getReply();
         assertNotNull(reply);
         assertEquals(reply.getType(), RedisReply.Type.ERROR);
-        assertEquals(BufferUtils.decode(reply.getBuff()), "Error message");
+        assertEquals(BufferUtils.decode(reply.getBytes()), "Error message");
     }
     
     @Test
@@ -71,12 +71,12 @@ public class ProtocolReaderTest
         RedisReply reply = reader.getReply();
         assertNotNull(reply);
         assertEquals(reply.getType(), RedisReply.Type.STRING);
-        assertEquals(BufferUtils.decode(reply.getBuff()), "foobar");
+        assertEquals(BufferUtils.decode(reply.getBytes()), "foobar");
         
         reply = reader.getReply();
         assertNotNull(reply);
         assertEquals(reply.getType(), RedisReply.Type.STRING);
-        assertEquals(BufferUtils.decode(reply.getBuff()), "");
+        assertEquals(BufferUtils.decode(reply.getBytes()), "");
     }
     
     @Test
@@ -113,7 +113,7 @@ public class ProtocolReaderTest
         {
             RedisReply innerReply = elements[i];
             assertEquals(innerReply.getType(), RedisReply.Type.STRING);
-            assertEquals(BufferUtils.decode(innerReply.getBuff()), val);
+            assertEquals(BufferUtils.decode(innerReply.getBytes()), val);
             i++;
         }
         
@@ -154,7 +154,7 @@ public class ProtocolReaderTest
             assertEquals(j,innerReply.getInteger());
         }
         assertEquals(elements[4].getType(), RedisReply.Type.STRING);
-        assertEquals(BufferUtils.decode(elements[4].getBuff()), "foobar");
+        assertEquals(BufferUtils.decode(elements[4].getBytes()), "foobar");
         
         reader.feed(BufferUtils.encode("*-1\r\n"));
         reply = reader.getReply();
@@ -247,6 +247,6 @@ public class ProtocolReaderTest
         reader.feed(BufferUtils.encode("\n"));
         RedisReply reply = reader.getReply();
         assertNotNull(reply);
-        assertEquals(BufferUtils.decode(reply.getBuff()), "OK");
+        assertEquals(BufferUtils.decode(reply.getBytes()), "OK");
     }
 }

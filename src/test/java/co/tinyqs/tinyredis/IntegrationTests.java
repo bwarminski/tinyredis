@@ -41,25 +41,25 @@ public class IntegrationTests
             System.out.println("Testing sending a command");
             RedisReply reply = conn.sendCommand("PING");
             checkState(reply.getType() == RedisReply.Type.STATUS, "Expecting status reply");
-            checkState("pong".equalsIgnoreCase(BufferUtils.decode(reply.getBuff())), "Expected pong as a reply");
+            checkState("pong".equalsIgnoreCase(reply.getString()), "Expected pong as a reply");
             
             System.out.println("Testing sending verbatim command");
             reply = conn.sendCommand("SET foo bar");
             checkState(reply.getType() == RedisReply.Type.STATUS, "Expecting status reply");
-            checkState("ok".equalsIgnoreCase(BufferUtils.decode(reply.getBuff())), "Expected ok as a reply");
+            checkState("ok".equalsIgnoreCase(reply.getString()), "Expected ok as a reply");
             
             System.out.println("Testing string interpolation");
             conn.sendCommand("SET %s %s","foo","hello world");
             reply = conn.sendCommand("GET foo");
             checkState(reply.getType() == RedisReply.Type.STRING, "Expecting string reply");
-            checkState("hello world".equals(BufferUtils.decode(reply.getBuff())), "Expected hello world as a reply");
+            checkState("hello world".equals(reply.getString()), "Expected hello world as a reply");
             
             System.out.println("Testing binary serialization");
             byte[] helloWorldBytes = "hello world".getBytes(StandardCharsets.UTF_16);
             conn.sendCommand("SET %s %b", "foo", "hello world");
             reply = conn.sendCommand("GET foo");
             checkState(reply.getType() == RedisReply.Type.STRING, "Expecting string reply");
-            checkState(Arrays.equals(helloWorldBytes, reply.getBuff()), "Expecting equal byte length returned");
+            checkState(Arrays.equals(helloWorldBytes, reply.getBytes()), "Expecting equal byte length returned");
             
             System.out.println("Testing nil reply");
             reply = conn.sendCommand("GET nokey");
@@ -78,8 +78,8 @@ public class IntegrationTests
             reply = conn.sendCommand("LRANGE mylist 0 -1");
             checkState(reply.getType() == RedisReply.Type.ARRAY, "Expecting array type");
             checkState(reply.getElements().length == 2, "Expecting two elements in the result");
-            checkState("bar".equals(BufferUtils.decode(reply.getElements()[0].getBuff())), "Expecting bar as the first result");
-            checkState("foo".equals(BufferUtils.decode(reply.getElements()[1].getBuff())), "Expecting foo as the second result");
+            checkState("bar".equals(BufferUtils.decode(reply.getElements()[0].getBytes())), "Expecting bar as the first result");
+            checkState("foo".equals(BufferUtils.decode(reply.getElements()[1].getBytes())), "Expecting foo as the second result");
             
             System.out.println("Testing nested multi bulk replies");
             conn.sendCommand("MULTI");
@@ -91,10 +91,22 @@ public class IntegrationTests
             checkState(reply.getElements().length == 2, "Expecting 2 elements");
             checkState(reply.getElements()[0].getType() == RedisReply.Type.ARRAY, "Expecting nested array type");
             checkState(reply.getElements()[0].getElements().length == 2, "Expecting 2 nested elements");
-            checkState("bar".equals(BufferUtils.decode(reply.getElements()[0].getElements()[0].getBuff())), "Expecting bar as the first nested element");
-            checkState("foo".equals(BufferUtils.decode(reply.getElements()[0].getElements()[1].getBuff())), "Expecting foo as the second nested element");
+            checkState("bar".equals(BufferUtils.decode(reply.getElements()[0].getElements()[0].getBytes())), "Expecting bar as the first nested element");
+            checkState("foo".equals(BufferUtils.decode(reply.getElements()[0].getElements()[1].getBytes())), "Expecting foo as the second nested element");
             checkState(reply.getElements()[1].getType() == RedisReply.Type.STATUS, "Expecting nested status type");
-            checkState("pong".equalsIgnoreCase(BufferUtils.decode(reply.getElements()[1].getBuff())), "Expected pong");
+            checkState("pong".equalsIgnoreCase(BufferUtils.decode(reply.getElements()[1].getBytes())), "Expected pong");
+            
+            System.out.println("Testing exception on error");
+            try
+            {
+                conn.exceptionOnError(true);
+                reply = conn.sendCommand("GARBAGE");
+                checkState(false, "Invalid command should have thrown an error");
+            }
+            catch (IOException e)
+            {
+                // Test passed
+            }
             
             System.out.println("\r\n--Testing throughput --\r\n");
             

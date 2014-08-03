@@ -24,13 +24,19 @@ public class RedisConnection implements AutoCloseable
     private Deque<ByteBuffer> outputBuffs;
     private ByteBuffer input;
     private boolean errorState;
+    private boolean exceptionOnError = false;
     
-    
+    /**
+     * Open a connection to specified remote address.
+     */
     public static RedisConnection connect(SocketAddress addr) throws IOException
     {
         return connect(addr, 0);
     }
     
+    /**
+     * Open a connection to a specified remote address, waiting a maximum of <strong>timeout</strong> ms
+     */
     public static RedisConnection connect(SocketAddress addr, int timeout) throws IOException
     {
         Preconditions.checkNotNull(addr, "Address may not be null");
@@ -56,10 +62,17 @@ public class RedisConnection implements AutoCloseable
         input = ByteBuffer.allocate(1024*16);
     }   
     
-    public void registerSerializer(RedisSerializer serializer)
+    public RedisConnection registerSerializer(RedisSerializer serializer)
     {
         writer.registerSerializer(serializer);
-    }   
+        return this;
+    }
+    
+    public RedisConnection exceptionOnError(boolean exceptionOnError)
+    {
+        this.exceptionOnError = exceptionOnError;
+        return this;
+    }
       
     /**
      * Send a command to the remote server and wait for a reply. %s and %b in the format string will
@@ -76,6 +89,10 @@ public class RedisConnection implements AutoCloseable
             ByteBuffer formatted = writer.formatCommand(format, args);
             appendCommand(formatted);        
             return blockForReply();
+        }
+        catch (RedisErrorException e)
+        {
+            throw e;
         }
         catch (Exception e)
         {
@@ -136,10 +153,11 @@ public class RedisConnection implements AutoCloseable
      */
     public RedisReply getReply() throws IOException
     {
+        RedisReply reply = null;
         Preconditions.checkState(!errorState, "Unable to retrieve commands in an error state");
         try
         {
-            RedisReply reply = reader.getReply();
+            reply = reader.getReply();
             
             if (reply == null && _isBlocking())
             {
@@ -175,14 +193,22 @@ public class RedisConnection implements AutoCloseable
                     reply = reader.getReply();
                 }
             }
-            
-            return reply;
+        }
+        catch (RedisErrorException e)
+        {
+            throw e;
         }
         catch (Exception e)
         {
             errorState = true;
             throw e;
         }
+        
+        if (reply != null && this.exceptionOnError && reply.getType() == RedisReply.Type.ERROR)
+        {
+            throw new RedisErrorException(reply.getString());
+        }
+        return reply;
     }
 
     public void close() throws Exception

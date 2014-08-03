@@ -1,6 +1,5 @@
 package co.tinyqs.tinyredis;
 
-import java.nio.ByteBuffer;
 
 public class RedisReply
 {
@@ -17,6 +16,7 @@ public class RedisReply
     private long integer = 0;
     private byte[] buff = null;
     private RedisReply[] elements = null;
+    private String asString = null;
     
     private RedisReply(){};
     
@@ -65,10 +65,20 @@ public class RedisReply
         return type;
     }
 
-    public byte[] getBuff()
+    public byte[] getBytes()
     {
         Preconditions.checkState(type == Type.ERROR || type == Type.STATUS || type == Type.STRING, "getBuff() is only valid for string-type replies");
         return buff;
+    }
+    
+    public String getString()
+    {
+        Preconditions.checkState(type == Type.ERROR || type == Type.STATUS || type == Type.STRING, "getString() is only valid for string-type replies");
+        if (asString == null)
+        {
+            asString = BufferUtils.decode(buff);
+        }
+        return asString;
     }
 
     public RedisReply[] getElements()
