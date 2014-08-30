@@ -92,4 +92,40 @@ public class RedisReply
         Preconditions.checkState(type == Type.INTEGER, "getInteger() is only valid for integer replies");
         return integer;
     }
+    
+    public boolean isArray()
+    {
+        return type == Type.ARRAY;
+    }
+    
+    public boolean isError()
+    {
+        return type == Type.ERROR;
+    }
+    
+    public boolean isInteger()
+    {
+        return type == Type.INTEGER;
+    }
+    
+    public boolean isNil()
+    {
+        return type == Type.NIL;
+    }
+    
+    public boolean isStatus()
+    {
+        return type == Type.STATUS;
+    }
+    
+    public boolean isString()
+    {
+        return type == Type.STRING;
+    }
+    
+    public int getArrayLength()
+    {
+        Preconditions.checkState(isArray(), "can only get array length of an array reply");
+        return elements.length;
+    }
 }

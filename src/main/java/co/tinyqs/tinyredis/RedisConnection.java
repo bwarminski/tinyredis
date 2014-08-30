@@ -1,6 +1,7 @@
 package co.tinyqs.tinyredis;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
@@ -49,6 +50,75 @@ public class RedisConnection implements AutoCloseable
         socket.connect(addr, timeout);
         
         return new RedisConnection(channel, new ProtocolReader(), new ProtocolWriter());
+    }
+    
+    public static RedisConnection connect(SentinelConfiguration config) throws IOException
+    {
+        Preconditions.checkNotNull(config, "Configuration may not be null");
+        
+        RedisConnection result = null;
+        
+        int timeout = config.getTimeout();
+        String getMasterCommand = "SENTINEL get-master-addr-by-name " + config.getServiceName();
+        
+        // Keep trying hosts until there are no more 
+        while (result == null && config.moreHosts())
+        {
+            SocketAddress addr = config.tryHost();
+            try (RedisConnection sentinelConn = connect(addr, timeout))
+            {
+                RedisReply reply = sentinelConn.sendCommand(getMasterCommand);
+                if (reply.isArray() && reply.getElements().length == 2)
+                {
+                    RedisReply[] elements = reply.getElements();
+                    if (elements[0].isString() && elements[1].isString())
+                    {
+                        String host = elements[0].getString();
+                        int port = Integer.parseInt(elements[1].getString());
+                        SocketAddress masterAddr = new InetSocketAddress(host, port);
+                        RedisConnection masterConn = null;
+                        try
+                        {
+                            masterConn = connect(masterAddr, timeout);
+                            RedisReply roleReply = masterConn.sendCommand("ROLE");
+                            
+                            // TODO: ROLE is not supported until recent versions
+                            if (roleReply.isArray() && roleReply.getArrayLength() >= 1)
+                            {
+                                RedisReply roleStr = roleReply.getElements()[0];
+                                if (roleStr.isString() && "master".equalsIgnoreCase(roleStr.getString()))
+                                {
+                                    result = masterConn;
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (result == null && masterConn != null && masterConn.channel.isOpen())
+                            {
+                                masterConn.close();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (IOException | NumberFormatException e)
+            {
+                // continue with next
+            }
+            
+            if (result != null)
+            {
+                config.successfulConnection();
+            }
+        }
+        
+        if (result == null)
+        {
+            throw new IOException("Unable to establish connection with master");
+        }
+        
+        return result;
     }
     
     private RedisConnection(SocketChannel channel, ProtocolReader reader, ProtocolWriter writer)
@@ -211,7 +281,7 @@ public class RedisConnection implements AutoCloseable
         return reply;
     }
 
-    public void close() throws Exception
+    public void close() throws IOException
     {
         channel.close();
     }

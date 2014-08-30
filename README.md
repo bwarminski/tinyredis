@@ -13,6 +13,12 @@ understand how to send a command to the server.
 All credit for the concepts behind this implementation belongs to the original authors of hiredis. This is Java port of hiredis' 
 blocking functionality with a few bells and whistles to deal with character encoding and serialization. 
 
+Installation
+------------
+
+Assuming you have maven installed, simply clone the repository and execute `mvn package`. The jar will be in the target/ directory.
+The only dependencies are JUnit for the unit tests.
+
 Basic Usage
 -----------
 
@@ -47,7 +53,7 @@ The initial string is split on space characters and any %s is substituted inline
 
 ```java
 conn.sendCommand("SET %s %s", "message", "Hello World!"); // Sends 3 part command [SET] [message] [Hello World!]
-conn.sendCommand("SET key%s %s, 1, "value"); // Sends [SET] [key1] [value]
+conn.sendCommand("SET key%s %s", 1, "value"); // Sends [SET] [key1] [value]
 ```
 
 Binary Serialization
